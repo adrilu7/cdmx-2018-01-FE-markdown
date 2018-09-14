@@ -1,74 +1,92 @@
-
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
+const file = './README.md';
 
 
-const mdLinks = (file) => {
-  // data es la ruta relativa del archivo README.md
-  // console.log(file);
-  let rutAbsoluta = path.resolve(file);
-  // este metodo cambia de ruta relativa a ruta absoluta
-  // console.log(absoluta);
-  fs.readFile(rutAbsoluta, 'utf8', (err, data)=> {
-    // este metodo entra a la ruta y se pasa una funcion
-    // console.log(rutAbsoluta);
-    if (err) {
-      // si hay error manda esto
-      console.log('Error en archivo');
-    } else {
-      // si no hay error se guarda la data en una variable
-      // let lineas = data.split('\n');
-      // y la data se le pasa un metodo que lo divide linea por linea y regresa un arreglo
-      // console.log(lineas);
-      let exRegLink = /(http:\/\/|https:\/\/|www\.)[^\s]+/gim;
-      // expresion regular para comparar el link
-      let exRegTexto = /\[[A-ZÑ_áéíóú\`\.\,\(\)\- \/$]*\]/gim;
-      // Expresion regular del texto
-      let arrayText = data.match(exRegTexto);
-      // match obtiene todas las comparaciones
-      let arrayLinks = data.match(exRegLink);
-      // console.log(arrayLinks);
-      let info = [];
-      for (let i = 0; i < arrayLinks.length; i++) {
-        arrayLinks[i] = arrayLinks[i].replace(/\)/g, '');
-        arrayText[i] = arrayText[i].replace(/\[|\]/gm, '');
-        info.push({
-          href: arrayLinks[i],
-          text: arrayText[i],
-          file: rutAbsoluta,
-        });
-        // console.log(info);
-      }
-      validarLinks(info);
-      return info;
-    };
+const pathLink = (file) => {
+  return new Promise((resolve, reject) => {
+    if (path.isAbsolute(file)) {
+      reject('No tienes ruta absoluta');
+    }
+    let rutaAbsoluta = path.resolve(file);
+    //console.log(rutaAbsoluta);
+    return resolve(rutaAbsoluta);
   });
 };
 
 
-const validarLinks = (info) => {
-  // console.log(arrayLinks);
-  // recorre arreglo
-  for (i = 0; i < info.length; i++) {
-    let urls = (info[i]);
-    fetch(urls).then((res) => {
-      // console.log(res);
-      let resUrls = res.url;
-      console.log(resUrls);
-      let resStat = res.status;
-      console.log(resStat);
-      let resTex = res.statusText;
-      console.log(resTex);
-    })
-
-      .catch(error => {
-        console.log('Error', error);
-      });
-  };
+const readFile = (rutaAbsoluta) => {// readfile cambia a formato utf8
+  return new Promise((resolve, reject) => {
+    fs.readFile(rutaAbsoluta, 'utf8', (err, data) => {
+      if (err) reject('No se puede leer este archivo');
+      resolve(data);
+    });
+  });
 };
 
-mdLinks('./README.md');
+
+const link = (data) => {
+  return new Promise((resolve, reject) => {
+    if (!data) {
+      return reject('Error al buscar links');
+    } else {
+      const exRegLink = /(http:\/\/|https:\/\/|www\.)[^\s]+/gim; // expresion regular para comparar el link
+      const exRegTexto = /\[[A-ZÑ_áéíóú\`\.\,\(\)\- \/$]*\]/gim;// Expresion regular del texto
+      const arrayText = data.match(exRegTexto);// match obtiene todas las comparaciones
+      const arrayLinks = data.match(exRegLink);// console.log(arrayLinks);
+      let infoLinks = [];
+      let fileLink = path.resolve(file);
+      for (let i = 0; i < arrayLinks.length; i++) {
+        arrayLinks[i] = arrayLinks[i].replace(/\)/g, '');
+        arrayText[i] = arrayText[i].replace(/\[|\]/gm, '');
+        infoLinks.push({
+          href: arrayLinks[i],
+          text: arrayText[i],
+          file: fileLink
+          // status: ''
+        });
+      };
+       //console.log(infoLinks);
+      return resolve(infoLinks);
+    }
+  });
+};
+
+const validarLinks = (infoLinks) => {
+  return new Promise((resolve, reject) => {
+    if (!infoLinks) reject('Error al buscar links');
+    for (i = 0; i < infoLinks.length; i++) {
+      let urls = (infoLinks[i]);
+      fetch(urls).then((res) => {
+        const resStat = res.status;
+        const resTex = res.statusText;
+        infoLinks.status = resStat + ' ' + resTex;
+        console.log(infoLinks);
+      });
+    }
+    resolve(infoLinks);
+    // console.log(finalLinks);
+  });
+};
+
+
+const mdLinks = (file) => {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject('Error, No tienes README.md');
+    }
+    resolve(file);
+    // console.log(file);
+  });
+};
+
+
+mdLinks(file)
+  .then(respon => pathLink(respon))
+  .then(respon => readFile(respon))
+  .then(respon => link(respon))
+  .then(respon => validarLinks(respon))
+  .catch(err => console.log('Hubo un error: ' + err.message));
 
 module.exports = mdLinks;
-
